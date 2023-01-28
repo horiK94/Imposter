@@ -2,25 +2,31 @@ using UnityEngine;
 using UnityEngine.Assertions;
 using System.IO;
 
-public class ImposterSpriteGenerator : MonoBehaviour
+public class ImposterSpriteAtlasGenerator : MonoBehaviour
 {
     [SerializeField] private float cameraDistance = 5f;
     [SerializeField] private float cameraHeight = 0;
 
     [SerializeField] private int cameraWidthCount = 0;
+    public int CameraWidthCount => cameraWidthCount;
+
     [SerializeField] private int cameraHeightCount = 0;
+    public int CameraHeightCount => cameraHeightCount;
 
     [SerializeField] private GameObject targetPrefab = null;
     [SerializeField] private Vector2 cameraWidthRange = new Vector2(0, 360);
     [SerializeField] private Vector2 cameraHeightRange = new Vector2(0, 180);
 
     [SerializeField] private Vector2Int cameraSize = Vector2Int.zero;
+    public Vector2Int CameraSize => cameraSize;
     [SerializeField] private string outputName = null;
+
+    public string OutputName => outputName;
 
     private GameObject createdPrefab = null;
     private Camera[,] captureCameras = new Camera[0, 0];
 
-    public void CreateSprite()
+    public void CreateAtlas()
     {
         Assert.IsTrue(cameraDistance > 0, "カメラの距離は0より大きい値にして下さい");
         Assert.IsTrue(cameraWidthCount >= 2, "カメラの横の個数は2以上を指定して下さい");
@@ -37,8 +43,8 @@ public class ImposterSpriteGenerator : MonoBehaviour
         Debug.Log("Make");
 
         createTargetPrefab();
-        RenderTexture renderTexture = createCamera();
-        createSprite(renderTexture);
+        var renderTextures = createCamera();
+        createAtlas(renderTextures);
     }
 
     public void PutTemporaryCamera()
@@ -58,7 +64,7 @@ public class ImposterSpriteGenerator : MonoBehaviour
         createCamera();
     }
 
-    private RenderTexture createCamera()
+    private RenderTexture[,] createCamera()
     {
         //再配置前のものは全部捨てる
         for (int heightInd = 0; heightInd < captureCameras.GetLength(0); heightInd++)
@@ -80,9 +86,7 @@ public class ImposterSpriteGenerator : MonoBehaviour
             (cameraHeightRange.y - cameraHeightRange.x) * Mathf.Deg2Rad / (cameraHeightCount - 1);
 
         captureCameras = new Camera[cameraHeightCount, cameraWidthCount];
-
-        var renderTexture = new RenderTexture(cameraSize.x * cameraWidthCount, cameraSize.y * cameraHeightCount, 24);
-        RenderTexture.active = renderTexture;
+        RenderTexture[,] renderTextures = new RenderTexture[cameraHeightCount, cameraWidthCount];
 
         Vector3 targetPos = new Vector3(0, cameraHeight, 0);
 
@@ -92,6 +96,9 @@ public class ImposterSpriteGenerator : MonoBehaviour
             float widthAngle = cameraWidthRange.x;
             for (int widthInd = 0; widthInd < cameraWidthCount; widthInd++)
             {
+                RenderTexture renTex = new RenderTexture(cameraSize.x, cameraSize.y, 24);
+                renderTextures[heightInd, widthInd] = renTex;
+
                 GameObject obj = new GameObject("Camera");
                 obj.transform.parent = transform;
 
@@ -119,10 +126,7 @@ public class ImposterSpriteGenerator : MonoBehaviour
                 camera.clearFlags = CameraClearFlags.SolidColor;
                 camera.backgroundColor = Color.clear;
 
-                camera.rect = new Rect((float) widthInd / cameraWidthCount, (float) heightInd / cameraHeightCount,
-                    1f / cameraWidthCount, 1f / cameraHeightCount);
-
-                camera.targetTexture = renderTexture;
+                camera.rect = new Rect(0, 0, 1, 1);
 
                 widthAngle += durationWidthAngle;
             }
@@ -130,7 +134,7 @@ public class ImposterSpriteGenerator : MonoBehaviour
             heightAngle += durationHeightAngle;
         }
 
-        return renderTexture;
+        return renderTextures;
     }
 
     private void createTargetPrefab()
@@ -144,21 +148,26 @@ public class ImposterSpriteGenerator : MonoBehaviour
         createdPrefab.transform.parent = transform;
     }
 
-    private void createSprite(RenderTexture _renderTexture)
+    private void createAtlas(RenderTexture[,] _renderTextures)
     {
         for (int heightInd = 0; heightInd < cameraHeightCount; heightInd++)
         {
             for (int widthInd = 0; widthInd < cameraWidthCount; widthInd++)
             {
-                captureCameras[heightInd, widthInd].Render();
+                Camera camera = captureCameras[heightInd, widthInd];
+                var renderTexture = _renderTextures[heightInd, widthInd];
+
+                camera.targetTexture = renderTexture;
+                camera.Render();
+
+                RenderTexture.active = renderTexture;
+
+                var texture = new Texture2D(cameraSize.x, cameraSize.y);
+                texture.ReadPixels(new Rect(0, 0, renderTexture.width, renderTexture.height), 0, 0);
+
+                File.WriteAllBytes(
+                    $"Assets/ImposterGenerator/{OutputName}/{heightInd}_{widthInd}.png", texture.EncodeToPNG());
             }
         }
-
-        var texture = new Texture2D(cameraSize.x * cameraWidthCount, cameraSize.y * cameraHeightCount);
-        texture.ReadPixels(new Rect(0, 0, _renderTexture.width, _renderTexture.height), 0, 0);
-
-        File.WriteAllBytes(
-            $"{Application.dataPath}/{outputName}.png",
-            texture.EncodeToPNG());
     }
 }

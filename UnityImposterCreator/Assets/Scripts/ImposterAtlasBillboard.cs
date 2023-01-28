@@ -1,29 +1,26 @@
-using System;
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Assertions;
-using UnityEngine.U2D;
 
 public class ImposterAtlasBillboard : MonoBehaviour
 {
-    [SerializeField] private int widthCount = 0;
+   [SerializeField] private int widthCount = 0;
     [SerializeField] private int heightCount = 0;
 
     [SerializeField] private Vector2 cameraWidthRange = new Vector2(0, 360);
     [SerializeField] private Vector2 cameraHeightRange = new Vector2(0, 180);
 
-    [SerializeField] private SpriteRenderer spriteRenderer = null;
-    [SerializeField] private SpriteAtlas spriteAtlas = null;
+    [SerializeField] private Renderer spriteRenderer = null;
 
+    private const string WIDTH_COUNT = "_WidthCount";
+    private const string HEIGHT_COUNT = "_HeightCount";
     private const string USE_POINT_NAME = "_UsePoint";
 
+    private Material material = null;
     private Transform cameraTransform = null;
 
+    private int nameId = 0;
     private Vector2 divideDuration = Vector2.zero;
     private Vector2Int useSpritePoint = -Vector2Int.one;
-
-    private Sprite[,] sprites = null;
 
     private void Start()
     {
@@ -37,6 +34,7 @@ public class ImposterAtlasBillboard : MonoBehaviour
         Assert.IsTrue(cameraHeightRange.x >= 0 && cameraHeightRange.x <= 180, "cameraHeightRange.xは0 ~ 180で指定して下さい");
         Assert.IsTrue(cameraHeightRange.y >= 0 && cameraHeightRange.y <= 180, "cameraHeightRange.yは0 ~ 180で指定して下さい");
 
+        material = spriteRenderer.material;
         cameraTransform = Camera.main.transform;
 
         int divideAreaX = cameraWidthRange.x == 0 && cameraWidthRange.y == 360
@@ -45,14 +43,9 @@ public class ImposterAtlasBillboard : MonoBehaviour
         divideDuration = new Vector2((cameraWidthRange.y - cameraWidthRange.x) / divideAreaX,
             (cameraHeightRange.y - cameraHeightRange.x) / (heightCount - 1));
 
-        sprites = new Sprite[heightCount, widthCount];
-        for (int heightInd = 0; heightInd < heightCount; heightInd++)
-        {
-            for (int widthInd = 0; widthInd < widthCount; widthInd++)
-            {
-                sprites[heightInd, widthInd] = spriteAtlas.GetSprite($"{heightInd}_{widthInd}");
-            }
-        }
+        nameId = Shader.PropertyToID(USE_POINT_NAME);
+        material.SetInt(WIDTH_COUNT, widthCount);
+        material.SetInt(HEIGHT_COUNT, heightCount);
 
         Vector2Int point = getUseSprite(calcAngle());
         setUseSprite(point);
@@ -134,6 +127,6 @@ public class ImposterAtlasBillboard : MonoBehaviour
 
         useSpritePoint = _usePoint;
 
-        spriteRenderer.sprite = sprites[_usePoint.y, _usePoint.x];
+        material.SetVector(nameId, new Vector4(_usePoint.x, _usePoint.y));
     }
 }
