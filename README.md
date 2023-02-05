@@ -1,6 +1,7 @@
 # Imposter
 
 インポスターは3Dポリゴンから複数枚の画像を作成し、見る角度に応じて画像を差し替えることでバッチ数を減らすことができます。
+https://www.youtube.com/watch?v=SGqOL7WkDn8
 
 ## 作成方法
 
